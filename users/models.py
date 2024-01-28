@@ -3,6 +3,7 @@ from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.utils.translation import gettext_lazy as _
 from .managers import CustomUserManager
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 # Create your models here.
 
@@ -96,12 +97,32 @@ class ConsultationRequest(models.Model):
         ('Appointment', 'การนัดหมาย'),
         ]
     
-    # full_name = models.ForeignKey(User, on_delete=models.CASCADE) #นำมาจากญานข้อมูลใน class User
-    # tel = models.CharField(User)
+    full_name = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='consultation_requests',  # เพิ่มบรรทัดนี้
+        null=True,
+        default=None
+    )    # tel = models.CharField(User)
     topic_code = models.CharField(max_length=10, choices=TOPIC_CODE)  # แก้ไขตามความเหมาะสม
     topic_title = models.CharField(max_length=10, choices=TOPIC_TITLE)
-    submission_date = models.DateTimeField(null=True, blank=True)
-    received_date = models.DateTimeField(null=True, blank=True)
+    submission_date = models.DateTimeField(null=True, blank=True, default=timezone.now)
+    received_date = models.DateTimeField(null=True, blank=True, default=timezone.now)
     details = models.TextField()
     document = models.ImageField(upload_to='documents/', null=True, blank=True) # เผื่อไว้อัพโหลดรูป
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending')
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, default=False)
+
+
+# คลังเก็บรายการคำขอที่เสร็จสิ้นแล้ว
+class CompletedConsultation(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    topic_code = models.CharField(max_length=20)
+    topic_title = models.CharField(max_length=255)
+    submission_date = models.DateTimeField()
+    details = models.TextField()
+    document = models.ImageField(upload_to='completed_consultations/', null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.user.full_name} - {self.topic_title}"
