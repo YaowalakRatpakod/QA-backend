@@ -1,26 +1,24 @@
 # views.py
 from rest_framework import generics, status
+from rest_framework.generics import ListAPIView
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from django.http import JsonResponse
 from django.http import HttpResponseNotAllowed
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from rest_framework.authentication import TokenAuthentication
 
-from .pusher import pusher_client
-from .models import User
-from .models import ConsultationRequest
-from .models import CompletedConsultation
-from .serializers import CreateUserSerializer
-from .serializers import ConsultationRequestSerializer
-from .serializers import CompletedConsultationSerializer
+from .models import User, ConsultationRequest, ChatMessage, CompletedConsultation
+from .serializers import CreateUserSerializer, ConsultationRequestSerializer , CompletedConsultationSerializer, ChatMessageSerializer
 
 import json
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
+from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 
 
@@ -47,13 +45,8 @@ class FullnameDropdownView(View):
 
 
 class ConsultationRequestCreateView(APIView):
-    # queryset = ConsultationRequest.objects.all()  # กำหนด queryset เพื่อให้ CreateAPIView ทำงานได้
-    # serializer_class = ConsultationRequestSerializer
-    # authentication_classes = []
+    
     permission_classes = [IsAuthenticated]
-
-    # def get_serializer_class(self):
-    #     return ConsultationRequestSerializer
 
     def post(self, request, *args, **kwargs):
         # ดึงข้อมูลผู้ใช้ที่ล็อกอิน
@@ -72,38 +65,87 @@ class ConsultationRequestListView(View):
         data = ConsultationRequest.objects.values()
         return JsonResponse({'data':list(data)}, safe=False)
 
-#API ENDPOINT ของรายการที่เสร็จวิ้น
-class CompletedConsultationList(generics.ListAPIView):
-    queryset = CompletedConsultation.objects.all()
-    serializer_class = CompletedConsultationSerializer
+
+class CompletedConsultationListAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-        user = self.request.user
-        return CompletedConsultation.objects.filter(user=user)
-    
-#API ENDPOINT ของสถิติ
-def statistics_view(request):
-    #ดึงข้อมูลสถิติ
-    completed_count = CompletedConsultation.objects.count()
+    def get(self, request):
+        # ดึงข้อมูลรายการที่เสร็จสิ้นแล้วของผู้ใช้ที่เข้าสู่ระบบ
+        completed_consultations = CompletedConsultation.objects.filter(user=request.user, status='Completed')
+        serializer = CompletedConsultationSerializer(completed_consultations, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-    # ส่งข้อมูลสถิติกลับเป็น JSON
-    data = {
-        'completed_count': completed_count,
-    }
+class ChatViews(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAuthenticated]
+    queryset = ChatMessage.objects.all()
+    serializer_class = ChatMessageSerializer
 
-    return JsonResponse(data)
+    def get(self, request, *args, **kwargs):
+        chats = self.get_queryset()
+        serializer = self.get_serializer(chats, many=True)
+        return Response(serializer.data)
 
-# API_ENDPOINT ของ message
-class MessageAPIView(APIView):
     def post(self, request):
-        pusher_client.trigger('users', 'message', {
-            'username': request.data['username'],
-            'message': request.data['message']
-            })
-        
-        return Response([])
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    # def put(self, request, pk, format=None):
+    #     instance = self.get_object()
+    #     serializer = self.get_serializer(instance, data=request.data)
+    #     if serializer.is_valid():
+    #         serializer.save()
+    #         return Response(serializer.data)
+    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+# @csrf_exempt
+# def send_messages(request):
+#     if request.method == 'POST':
+#         # รับข้อมูลจากคำขอ POST
+#         sender_id = request.POST.get('sender_id')
+#         receiver_id = request.POST.get('receiver_id')
+#         message = request.POST.get('message')
+
+#         # ดึงข้อมูลผู้ส่งและผู้รับ
+#         sender = get_object_or_404(User, id=sender_id)
+#         receiver = get_object_or_404(User, id=receiver_id)
+
+#         # สร้างข้อความแชทและบันทึกลงในฐานข้อมูล
+#         chat_message = ChatMessage.objects.create(sender=sender, receiver=receiver, message=message)
+#         return JsonResponse({'status': 'success'})
+#     else:
+#         # ถ้าไม่ใช่คำขอ POST ให้ส่งข้อความข้อผิดพลาดกลับ
+#         return JsonResponse({'status': 'error', 'message': 'Invalid request method'})
     
+# def get_messages(request, sender_id, receiver_id):
+#     # ดึงข้อมูลผู้ส่งและผู้รับ
+#     sender = get_object_or_404(User, id=sender_id)
+#     receiver = get_object_or_404(User, id=receiver_id)
+
+#     # ค้นหาข้อความแชทระหว่างผู้ส่งและผู้รับ และเรียงลำดับตามเวลา
+#     messages = ChatMessage.objects.filter(sender=sender, receiver=receiver).order_by('timestamp')
+    
+#     # สร้างข้อมูลข้อความที่จะส่งกลับไปให้ React
+#     message_data = [{'sender': msg.sender.full_name, 'message': msg.message, 'timestamp': msg.timestamp} for msg in messages]
+    
+#     # ส่งข้อมูลข้อความกลับเป็น JSON
+#     return JsonResponse({'messages': message_data})
+
+
+
+#API ENDPOINT ของสถิติ
+# def statistics_view(request):
+#     #ดึงข้อมูลสถิติ
+#     completed_count = CompletedConsultation.objects.count()
+
+#     # ส่งข้อมูลสถิติกลับเป็น JSON
+#     data = {
+#         'completed_count': completed_count,
+#     }
+
+#     return JsonResponse(data)
+
 
 #API_ENDPOINT
 @csrf_exempt
@@ -139,21 +181,6 @@ def user_consultation_requests(request):
         return JsonResponse({'consultation_requests': list(consultation_requests)})
     else:
         return JsonResponse({'error': 'User is not authenticated'})
-# def create_consultation_request(request):
-#     if request.method == 'POST':
-#         user = request.user
-#         # ให้ full_name, tel, email มีค่าจากข้อมูลของผู้ใช้
-#         consultation_request = ConsultationRequest.objects.create(
-#             user=user,
-#             full_name=user.full_name,
-#             tel=user.tel,
-#             email=user.email,
-#             # ส่วนอื่น ๆ ของ consultation_request
-#         )
-#         # ต่อไปคุณสามารถทำสิ่งที่คุณต้องการกับ consultation_request ที่ถูกสร้าง
-#         return JsonResponse({'success': True, 'message': 'Consultation request created successfully'})
-#     else:
-#         return HttpResponseNotAllowed(['POST'])
     
 #test ตัว create ของรายการใหม่อีกรอบ
 @api_view(['POST'])
@@ -168,11 +195,52 @@ def create_consultation_request(request):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])        
 def user_consultation_requests(request):
     consultation_requests = ConsultationRequest.objects.filter(user=request.user)
     serializer = ConsultationRequestSerializer(consultation_requests, many=True)
+    # สร้างและบันทึกข้อมูล CompletedConsultation
+    for consultation_request in consultation_requests:
+        CompletedConsultation.objects.create(
+            user=request.user,
+            consultation_request=consultation_request,
+            # สามารถเพิ่มข้อมูลเพิ่มเติมจาก consultation_request ได้ตามต้องการ
+        )
+
     return Response(serializer.data)
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])  
+def user_consultation_requests_id(request,id):
+    try:
+        consultation_request = ConsultationRequest.objects.get(id=id)
+        # ตรวจสอบว่าผู้ใช้ที่เข้าถึงรายการคำขอเป็นเจ้าของหรือไม่
+        if consultation_request.user != request.user:
+            return Response({'error': 'You do not have permission to access this consultation request'}, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = ConsultationRequestSerializer(consultation_request)
+        return Response(serializer.data, status=status.HTTP_200_OK)  # แก้ไขเพิ่มเติม: เพิ่ม status ให้กับ Response
+    except ConsultationRequest.DoesNotExist:
+        return Response({'error': 'Consultation request does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+# get all request
+def get_all_requests(request):
+    requests = ConsultationRequest.objects.all()
+    data = [{'id': request.id, 'user': request.user.full_name, 'topic_id': request.topic_id, 'topic_section': request.topic_section, 'submission_date': request.submission_date, 'received_date': request.received_date, 'status': request.status} for request in requests]
+    return JsonResponse(data, safe=False)
+
+def get_all_requests_detail(request, request_id):
+    request = get_object_or_404(ConsultationRequest, id=request_id)
+    
+    data = {
+        'id': request.id,
+        'user': request.user.full_name,
+        'topic_id': request.topic_id,
+        'topic_section': request.topic_section,
+        'submission_date': request.submission_date,
+        'received_date': request.received_date,
+        'status': request.status
+    }
+    
+    return JsonResponse(data)

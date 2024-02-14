@@ -47,6 +47,8 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 
+CSRF_COOKIE_SECURE = False
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -66,9 +68,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    #เพิ่ม middle ware
-    # 'users.middleware.AccessTokenMiddleware',
-    # จบ
+
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
@@ -159,6 +159,7 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAdminUser',
@@ -167,7 +168,7 @@ REST_FRAMEWORK = {
 
 # Simple-JWT
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=10000),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=10),
     'ROTATE_REFRESH_TOKENS': False,
     'ALGORITHM': 'HS256',

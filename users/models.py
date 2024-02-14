@@ -43,7 +43,7 @@ class ConsultationRequest(models.Model):
         "UP01": "UP01",
         "UP02": "UP02",
         "UP03": "UP03",
-        "UP03.1": "UP03.1",
+        "UP03-1": "UP03.1",
         "UP05": "UP05",
         "UP06": "UP06",
         "UP07": "UP07",
@@ -56,7 +56,7 @@ class ConsultationRequest(models.Model):
         "UP14": "UP14",
         "UP17": "UP17",
         "UP18": "UP18",
-        "UP20.1": "UP20.1",
+        "UP20-1": "UP20.1",
         "UP24": "UP24",
         "UP25": "UP25",
         "UP29": "UP29",
@@ -71,7 +71,7 @@ class ConsultationRequest(models.Model):
         "UP01": "คำร้องทั่วไป",
         "UP02": "คำร้องขอใบรับรอง",
         "UP03": "คำร้องขอใบรายงานผลการศึกษา (Transcript)",
-        "UP03.1": "คำร้องขอใบรายงานผลการศึกษา (Digital Transcript)",
+        "UP03-1": "คำร้องขอใบรายงานผลการศึกษา (Digital Transcript)",
         "UP05": "คำร้องขอเพิ่มรายวิชาหลังกำหนด",
         "UP06": "คำร้องขอลงทะเบียนเรียนมากกว่า/น้อยกว่าเกณฑ์",
         "UP07": "คำร้องขออนุมัติเทียบรายวิชา",
@@ -84,7 +84,7 @@ class ConsultationRequest(models.Model):
         "UP14": "คำร้องขอลงทะเบียนเรียนพร้อมฝึกงาน/การศึกษาอิสระ/วิทยานิพนธ์",
         "UP17": "คำร้องขอผ่อนผันการชำระค่าลงทะเบียนเรียน",
         "UP18": "คำร้องขอผ่อนผันการชำระค่าลงทะเบียนเรียน",
-        "UP20.1": "คำร้องยื่นความประสงค์ขอลงทะเบียนเรียนรายวิชา",
+        "UP20-1": "คำร้องยื่นความประสงค์ขอลงทะเบียนเรียนรายวิชา",
         "UP24": "คำร้องขอสำเร็จการศึกษา",
         "UP29": "คำร้องขอยื่นสำเร็จการศึกษาล่าช้ากว่ากำหนด",
         "UP30": "คำร้องขอถอนรายวิชาศึกษาทั่วไป (GE-Online)",
@@ -96,16 +96,9 @@ class ConsultationRequest(models.Model):
         ('Completed', 'เสร็จสิ้น'),
         ('Appointment', 'การนัดหมาย'),
         ]
-    
-    full_name = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='consultation_requests',  # เพิ่มบรรทัดนี้
-        null=True,
-        default=None
-    )    # tel = models.CharField(User)
-    topic_code = models.CharField(max_length=10, choices=TOPIC_CODE)  # แก้ไขตามความเหมาะสม
-    topic_title = models.CharField(max_length=10, choices=TOPIC_TITLE)
+
+    topic_id = models.CharField(max_length=10, choices=TOPIC_CODE)  # แก้ไขตามความเหมาะสม
+    topic_section = models.CharField(max_length=100, choices=TOPIC_TITLE)
     submission_date = models.DateTimeField(null=True, blank=True, default=timezone.now)
     received_date = models.DateTimeField(null=True, blank=True, default=timezone.now)
     details = models.TextField()
@@ -114,15 +107,24 @@ class ConsultationRequest(models.Model):
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, default=False)
 
-
-# คลังเก็บรายการคำขอที่เสร็จสิ้นแล้ว
 class CompletedConsultation(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    topic_code = models.CharField(max_length=20)
-    topic_title = models.CharField(max_length=255)
-    submission_date = models.DateTimeField()
-    details = models.TextField()
-    document = models.ImageField(upload_to='completed_consultations/', null=True, blank=True)
+    consultation_request = models.ForeignKey(ConsultationRequest, on_delete=models.CASCADE, default=None)
+    submission_date = models.DateTimeField(null=True, blank=True, default=timezone.now)
+    status = models.CharField(max_length=50)
+    # สร้าง fields อื่น ๆ ตามที่คุณต้องการ
 
     def __str__(self):
-        return f"{self.user.full_name} - {self.topic_title}"
+        return f"Completed consultation for {self.user.full_name}"
+    
+# Chat
+class ChatMessage(models.Model):
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sender_messages')
+    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='receiver_messages')
+    message = models.TextField()
+    timestamp = models.DateTimeField(default=timezone.now)
+    is_read = models.BooleanField(default=False)
+    room = models.CharField(max_length=5)
+
+    def __str__(self):
+        return f"{self.sender} to {self.receiver} - {self.timestamp}"

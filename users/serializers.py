@@ -2,11 +2,7 @@ from django.contrib.auth import get_user_model
 from djoser.serializers import UserCreateSerializer
 from rest_framework import serializers
 
-from .models import ConsultationRequest
-from .models import User
-from .models import CompletedConsultation
-
-
+from .models import User, ConsultationRequest, ChatMessage, CompletedConsultation
 
 User = get_user_model()
 
@@ -49,10 +45,10 @@ class ConsultationRequestSerializer(serializers.ModelSerializer):
             # user_instance = User.objects.get(full_name=user_data['full_name'])
             # ใช้ instance ของ User ในการสร้าง ConsultationRequest
             consultation_request = ConsultationRequest.objects.create(
-                # user=user_instance,
+                
                 user=self.context['request'].user,
-                topic_code=validated_data['topic_code'],
-                topic_title=validated_data['topic_title'],
+                topic_id=validated_data['topic_id'],
+                topic_section=validated_data['topic_section'],
                 submission_date=validated_data['submission_date'],
                 details=validated_data['details'],
                 document=validated_data.get('document', None),
@@ -63,9 +59,18 @@ class ConsultationRequestSerializer(serializers.ModelSerializer):
             # ถ้าไม่มีข้อมูล user ให้ทำการ raise exception หรือทำอย่างไรตามที่เหมาะสม
             raise serializers.ValidationError("User data is missing in the request.")
 
+# แชท
+class ChatMessageSerializer(serializers.ModelSerializer):
+    sender_user = UserSerializer(source='sender', read_only=True)
+    receiver_user = UserSerializer(source='receiver', read_only=True)
+    
+    class Meta:
+        model = ChatMessage
+        fields = ['id','sender', 'receiver','sender_user', 'receiver_user', 'message', 'is_read', 'timestamp','room']
     
 # รายการที่เสร็จสิ้น
 class CompletedConsultationSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = CompletedConsultation
         fields = '__all__'

@@ -2,8 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
 from .form import CustomUserChangeForm, CustomUserCreationForm
-from .models import User
-from .models import ConsultationRequest
+from .models import User, ConsultationRequest, ChatMessage
 # Register your models here. ใช้สำหรับจัดการผู้ใช้
 
 
@@ -52,10 +51,14 @@ class UserAdmin(BaseUserAdmin):
     )
 
 class ConsultationRequestAdmin(admin.ModelAdmin):
-    list_display = ['topic_code','topic_title', 'submission_date', 'status']
-    list_filter = ['topic_code','topic_title','submission_date','status']
-    search_fields = ['topic_code']
+    list_display = ['user','topic_id','topic_section', 'submission_date', 'status']
+    list_filter = ['user','topic_id','topic_section','submission_date','status']
+    search_fields = ['topic_id']
 
+class ChatMessageAdmin(admin.ModelAdmin):
+    list_editable = ['is_read']
+    list_display = ["sender","receiver","message","is_read"]
 
 admin.site.register(User, UserAdmin)
 admin.site.register(ConsultationRequest, ConsultationRequestAdmin)
+admin.site.register(ChatMessage, ChatMessageAdmin)
