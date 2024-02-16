@@ -11,8 +11,8 @@ from django.http import HttpResponseNotAllowed
 from django.shortcuts import render, get_object_or_404
 from rest_framework.authentication import TokenAuthentication
 
-from .models import User, ConsultationRequest, ChatMessage, CompletedConsultation
-from .serializers import CreateUserSerializer, ConsultationRequestSerializer , CompletedConsultationSerializer, ChatMessageSerializer
+from .models import User, ConsultationRequest, ChatMessage
+from .serializers import CreateUserSerializer, ConsultationRequestSerializer, ChatMessageSerializer
 
 import json
 from django.views import View
@@ -58,7 +58,7 @@ class ConsultationRequestCreateView(APIView):
             serializer.save(user=request.user)  # ใช้ request.user เพื่อกำหนดผู้ใช้ที่สร้างคำขอ
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+    
 #API ENDPOINT ของการ์ดคำถาม
 class ConsultationRequestListView(View):
     def get(self,request):
@@ -66,73 +66,28 @@ class ConsultationRequestListView(View):
         return JsonResponse({'data':list(data)}, safe=False)
 
 
-class CompletedConsultationListAPIView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        # ดึงข้อมูลรายการที่เสร็จสิ้นแล้วของผู้ใช้ที่เข้าสู่ระบบ
-        completed_consultations = CompletedConsultation.objects.filter(user=request.user, status='Completed')
-        serializer = CompletedConsultationSerializer(completed_consultations, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
 class ChatViews(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
     queryset = ChatMessage.objects.all()
     serializer_class = ChatMessageSerializer
 
     def get(self, request, *args, **kwargs):
-        chats = self.get_queryset()
-        serializer = self.get_serializer(chats, many=True)
+        # ดึงหมายเลขห้องที่เกี่ยวข้องกับรายการคำขอที่เราเลือก
+        consultation_request_id = kwargs.get('consultation_request_id')
+        consultation_request = get_object_or_404(ConsultationRequest, id=consultation_request_id)
+        
+        # กรองข้อความตามหมายเลขห้อง
+        chats = self.queryset.filter(room=consultation_request.id)
+        
+        serializer = self.serializer_class(chats, many=True)
         return Response(serializer.data)
 
-    def post(self, request):
+    def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    # def put(self, request, pk, format=None):
-    #     instance = self.get_object()
-    #     serializer = self.get_serializer(instance, data=request.data)
-    #     if serializer.is_valid():
-    #         serializer.save()
-    #         return Response(serializer.data)
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-# @csrf_exempt
-# def send_messages(request):
-#     if request.method == 'POST':
-#         # รับข้อมูลจากคำขอ POST
-#         sender_id = request.POST.get('sender_id')
-#         receiver_id = request.POST.get('receiver_id')
-#         message = request.POST.get('message')
-
-#         # ดึงข้อมูลผู้ส่งและผู้รับ
-#         sender = get_object_or_404(User, id=sender_id)
-#         receiver = get_object_or_404(User, id=receiver_id)
-
-#         # สร้างข้อความแชทและบันทึกลงในฐานข้อมูล
-#         chat_message = ChatMessage.objects.create(sender=sender, receiver=receiver, message=message)
-#         return JsonResponse({'status': 'success'})
-#     else:
-#         # ถ้าไม่ใช่คำขอ POST ให้ส่งข้อความข้อผิดพลาดกลับ
-#         return JsonResponse({'status': 'error', 'message': 'Invalid request method'})
-    
-# def get_messages(request, sender_id, receiver_id):
-#     # ดึงข้อมูลผู้ส่งและผู้รับ
-#     sender = get_object_or_404(User, id=sender_id)
-#     receiver = get_object_or_404(User, id=receiver_id)
-
-#     # ค้นหาข้อความแชทระหว่างผู้ส่งและผู้รับ และเรียงลำดับตามเวลา
-#     messages = ChatMessage.objects.filter(sender=sender, receiver=receiver).order_by('timestamp')
-    
-#     # สร้างข้อมูลข้อความที่จะส่งกลับไปให้ React
-#     message_data = [{'sender': msg.sender.full_name, 'message': msg.message, 'timestamp': msg.timestamp} for msg in messages]
-    
-#     # ส่งข้อมูลข้อความกลับเป็น JSON
-#     return JsonResponse({'messages': message_data})
-
-
 
 #API ENDPOINT ของสถิติ
 # def statistics_view(request):
@@ -195,18 +150,53 @@ def create_consultation_request(request):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@csrf_exempt
+def update_request_status(request, id):
+    if request.method == 'PUT':
+        try:
+            # อ่านข้อมูลจาก Request Body
+            data = json.loads(request.body)
+            new_status = data.get('new_status', None)
+
+            if new_status is None:
+                return JsonResponse({'error': 'Missing new_status field'}, status=400)
+
+            # ค้นหาคำขอโดยใช้ id
+            consultation_request = ConsultationRequest.objects.get(id=id)
+
+            # อัปเดตสถานะของคำขอ
+            consultation_request.status = new_status
+            consultation_request.save()
+
+            return JsonResponse({'success': True, 'message': 'Status updated successfully'}, status=200)
+        except ConsultationRequest.DoesNotExist:
+            return JsonResponse({'error': 'Consultation request does not exist'}, status=404)
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+@csrf_exempt
+def get_completed_requests(request):
+    # ค้นหารายการที่มีสถานะเป็น "เสร็จสิ้น"
+    completed_requests = ConsultationRequest.objects.filter(status="Completed")
+
+    # สร้างรายการข้อมูลที่จะส่งกลับในรูปแบบ JSON
+    data = [{'id': request.id, 'user': request.user.full_name, 'topic_id': request.topic_id, 'topic_section': request.topic_section, 'submission_date': request.submission_date, 'received_date': request.received_date, 'status': request.status, 'details': request.details} for request in completed_requests]
+
+    # ส่งข้อมูลกลับในรูปแบบ JSON
+    return JsonResponse(data, safe=False)
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])        
 def user_consultation_requests(request):
     consultation_requests = ConsultationRequest.objects.filter(user=request.user)
     serializer = ConsultationRequestSerializer(consultation_requests, many=True)
     # สร้างและบันทึกข้อมูล CompletedConsultation
-    for consultation_request in consultation_requests:
-        CompletedConsultation.objects.create(
-            user=request.user,
-            consultation_request=consultation_request,
-            # สามารถเพิ่มข้อมูลเพิ่มเติมจาก consultation_request ได้ตามต้องการ
-        )
+    # for consultation_request in consultation_requests:
+    #     CompletedConsultation.objects.create(
+    #         user=request.user,
+    #         consultation_request=consultation_request,
+    #         # สามารถเพิ่มข้อมูลเพิ่มเติมจาก consultation_request ได้ตามต้องการ
+    #     )
 
     return Response(serializer.data)
 
@@ -227,7 +217,7 @@ def user_consultation_requests_id(request,id):
 # get all request
 def get_all_requests(request):
     requests = ConsultationRequest.objects.all()
-    data = [{'id': request.id, 'user': request.user.full_name, 'topic_id': request.topic_id, 'topic_section': request.topic_section, 'submission_date': request.submission_date, 'received_date': request.received_date, 'status': request.status} for request in requests]
+    data = [{'id': request.id, 'user': request.user.full_name, 'topic_id': request.topic_id, 'topic_section': request.topic_section, 'submission_date': request.submission_date, 'received_date': request.received_date, 'status': request.status, 'details':request.details} for request in requests]
     return JsonResponse(data, safe=False)
 
 def get_all_requests_detail(request, request_id):
@@ -240,7 +230,19 @@ def get_all_requests_detail(request, request_id):
         'topic_section': request.topic_section,
         'submission_date': request.submission_date,
         'received_date': request.received_date,
-        'status': request.status
+        'status': request.status,
+        'details': request.details
     }
     
     return JsonResponse(data)
+
+# check admin
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def check_admin(request):
+    user = request.user
+    if user.is_superuser:
+        return Response({'is_admin': True})
+    else:
+        return Response({'is_admin': False})
+    

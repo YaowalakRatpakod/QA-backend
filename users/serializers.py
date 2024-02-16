@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from djoser.serializers import UserCreateSerializer
 from rest_framework import serializers
 
-from .models import User, ConsultationRequest, ChatMessage, CompletedConsultation
+from .models import User, ConsultationRequest, ChatMessage
 
 User = get_user_model()
 
@@ -13,7 +13,6 @@ class CreateUserSerializer(UserCreateSerializer):
         is_active = serializers.BooleanField(default=True)
 
 class UserSerializer(serializers.ModelSerializer):
-    # id = serializers.IntegerField()
     class Meta:
         model = User
         fields = ['id', 'full_name']
@@ -35,7 +34,7 @@ class ConsultationRequestSerializer(serializers.ModelSerializer):
             status_data = validated_data['status']
         else:
             # ถ้าไม่มีให้ใช้ค่า default หรือให้เกิดข้อผิดพลาดขึ้นอยู่กับการออกแบบของระบบ
-            status_data = None  # หรือสามารถกำหนดค่า default ได้ตามต้องการ
+            status_data = None
             
         # ตรวจสอบว่ามีข้อมูล user หรือไม่
         if user_data:
@@ -67,10 +66,15 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChatMessage
         fields = ['id','sender', 'receiver','sender_user', 'receiver_user', 'message', 'is_read', 'timestamp','room']
+
+    def reply_to_comment(self, instance, validated_data):
+        sender = self.context['request'].user
+        room = validated_data['room']
+        return ChatMessage.objects.create(sender=sender, room=room, **validated_data)
     
 # รายการที่เสร็จสิ้น
-class CompletedConsultationSerializer(serializers.ModelSerializer):
+# class CompletedConsultationSerializer(serializers.ModelSerializer):
 
-    class Meta:
-        model = CompletedConsultation
-        fields = '__all__'
+#     class Meta:
+#         model = CompletedConsultation
+#         fields = '__all__'
