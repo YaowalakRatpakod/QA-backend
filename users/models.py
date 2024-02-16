@@ -108,15 +108,6 @@ class ConsultationRequest(models.Model):
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, default=False)
 
-class CompletedConsultation(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    consultation_request = models.ForeignKey(ConsultationRequest, on_delete=models.CASCADE, default=None)
-    submission_date = models.DateTimeField(null=True, blank=True, default=timezone.now)
-    status = models.CharField(max_length=50)
-    # สร้าง fields อื่น ๆ ตามที่คุณต้องการ
-
-    def __str__(self):
-        return f"Completed consultation for {self.user.full_name}"
     
 # Chat
 class ChatMessage(models.Model):
