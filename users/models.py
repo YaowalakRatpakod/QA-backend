@@ -11,6 +11,7 @@ from django.utils import timezone
 class User(AbstractBaseUser, PermissionsMixin):
     full_name= models.CharField(_('Full Name'), max_length=100)
     tel=models.CharField(_('Tel'),max_length=10)
+    # major=models.CharField(_('major'))
     email = models.EmailField(_("email address"), max_length=254, unique=True)
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
