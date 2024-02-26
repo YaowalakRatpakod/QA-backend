@@ -2,20 +2,20 @@ from django.contrib.auth import get_user_model
 from djoser.serializers import UserCreateSerializer
 from rest_framework import serializers
 
-from .models import User, ConsultationRequest, ChatMessage
+from .models import User, ConsultationRequest, ChatMessage, Appointment
 
 User = get_user_model()
 
 class CreateUserSerializer(UserCreateSerializer):
     class Meta(UserCreateSerializer.Meta):
         model = User
-        fields = ['id', 'email', 'full_name', 'password']
+        fields = ['id', 'email', 'full_name', 'password', 'major']
         is_active = serializers.BooleanField(default=True)
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'full_name']
+        fields = ['id', 'full_name','major']
 
 # สร้างคำขอปรึกษา
 class ConsultationRequestSerializer(serializers.ModelSerializer):
@@ -51,7 +51,8 @@ class ConsultationRequestSerializer(serializers.ModelSerializer):
                 submission_date=validated_data['submission_date'],
                 details=validated_data['details'],
                 document=validated_data.get('document', None),
-                status=status_data
+                status=status_data,
+                major=user_instance.major
                 )
             return consultation_request
         else:
@@ -72,9 +73,8 @@ class ChatMessageSerializer(serializers.ModelSerializer):
         room = validated_data['room']
         return ChatMessage.objects.create(sender=sender, room=room, **validated_data)
     
-# รายการที่เสร็จสิ้น
-# class CompletedConsultationSerializer(serializers.ModelSerializer):
 
-#     class Meta:
-#         model = CompletedConsultation
-#         fields = '__all__'
+class AppointmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Appointment
+        fields = '__all__'

@@ -11,8 +11,8 @@ from django.http import HttpResponseNotAllowed
 from django.shortcuts import render, get_object_or_404
 from rest_framework.authentication import TokenAuthentication
 
-from .models import User, ConsultationRequest, ChatMessage
-from .serializers import CreateUserSerializer, ConsultationRequestSerializer, ChatMessageSerializer
+from .models import User, ConsultationRequest, ChatMessage, Appointment
+from .serializers import CreateUserSerializer, ConsultationRequestSerializer, ChatMessageSerializer, AppointmentSerializer
 
 import json
 from django.views import View
@@ -26,11 +26,6 @@ class UserListView(generics.ListAPIView):
     queryset = User.objects.all()
     serializer_class = CreateUserSerializer
     permission_classes = [IsAuthenticated]  # ต้อง login เพื่อเข้าถึง API
-
-    # def list(self, request, *args, **kwargs):
-    #     queryset = self.get_queryset()
-    #     serializer = self.get_serializer(queryset, many=True)
-    #     return Response(serializer.data)
 
     def get_object(self):
         return self.request.user
@@ -89,18 +84,6 @@ class ChatViews(generics.RetrieveUpdateDestroyAPIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-#API ENDPOINT ของสถิติ
-# def statistics_view(request):
-#     #ดึงข้อมูลสถิติ
-#     completed_count = CompletedConsultation.objects.count()
-
-#     # ส่งข้อมูลสถิติกลับเป็น JSON
-#     data = {
-#         'completed_count': completed_count,
-#     }
-
-#     return JsonResponse(data)
-
 
 #API_ENDPOINT
 @csrf_exempt
@@ -136,6 +119,11 @@ def user_consultation_requests(request):
         return JsonResponse({'consultation_requests': list(consultation_requests)})
     else:
         return JsonResponse({'error': 'User is not authenticated'})
+    
+
+class AppointmentListCreate(generics.ListCreateAPIView):
+    queryset = Appointment.objects.all()
+    serializer_class = AppointmentSerializer
     
 #test ตัว create ของรายการใหม่อีกรอบ
 @api_view(['POST'])
@@ -226,6 +214,7 @@ def get_all_requests_detail(request, request_id):
     data = {
         'id': request.id,
         'user': request.user.full_name,
+        'user_id':request.user.id,
         'topic_id': request.topic_id,
         'topic_section': request.topic_section,
         'submission_date': request.submission_date,
