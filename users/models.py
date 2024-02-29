@@ -7,20 +7,8 @@ from django.utils import timezone
 
 # Create your models here.
 
+
 class User(AbstractBaseUser, PermissionsMixin):
-    MAJORS = {
-        "SE": "สาขาวิชาวิศวกรรมซอฟต์แวร์",
-        "CS": "สาขาวิชาวิทยาการคอมพิวเตอร์",
-        "CPE": "สาขาวิชาวิศวกรรมคอมพิวเตอร์",
-        "IT": "สาขาวิชาเทคโนโลยีสารสนเทศ",
-        "BS": "สาขาวิชาภูมิสารสนเทศศาสตร์",
-        "BBA": "สาขาวิชาธุรกิจดิจิทัล",
-        "CG": "สาขาวิชาคอมพิวเตอร์กราฟิกและมัลติมีเดีย",
-        "BSC": "สาขาวิชาวิทยาการข้อมูลและการประยุกต์",
-        "ICTE": "สาขาวิชาเทคโนโลยีสารสนเทศและสาขาวิชาภาษาอังกฤษ",
-
-    }
-
     full_name= models.CharField(_('Full Name'), max_length=100)
     tel=models.CharField(_('Tel'),max_length=10)
     # major=models.CharField(_('major'))
@@ -28,7 +16,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     date_joined = models.DateTimeField(auto_now_add=True)
-    major = models.CharField(max_length=100, choices=MAJORS)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['full_name', 'tel'] 
@@ -45,12 +32,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def get_full_name(self):
         return f"{self.full_name}"
-    
-    def get_user_major(self):
-        return f"{self.major}"
-    
-    
-    
     
 class ConsultationRequest(models.Model):
 
@@ -117,7 +98,6 @@ class ConsultationRequest(models.Model):
         ('Appointment', 'การนัดหมาย'),
         ]
 
-
     topic_id = models.CharField(max_length=10, choices=TOPIC_CODE)  # แก้ไขตามความเหมาะสม
     topic_section = models.CharField(max_length=100, choices=TOPIC_TITLE)
     submission_date = models.DateTimeField(null=True, blank=True, default=timezone.now)
@@ -126,12 +106,8 @@ class ConsultationRequest(models.Model):
     document = models.ImageField(upload_to='documents/', null=True, blank=True) # เผื่อไว้อัพโหลดรูป
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending')
 
-    major = models.CharField(max_length=100, choices=User.MAJORS, blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, default=False)
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, default=False, related_name='consultation_requests')
-
-    def get_user_major(self):
-        return self.user.major
     
 # Chat
 class ChatMessage(models.Model):
@@ -144,8 +120,3 @@ class ChatMessage(models.Model):
 
     def __str__(self):
         return f"{self.sender} to {self.receiver} - {self.timestamp}"
-
-class Appointment(models.Model):
-    appointment_date = models.DateField(null=True, blank=True)
-    location = models.CharField(max_length=100, blank=True)
-    time = models.CharField(max_length=100, blank=True)

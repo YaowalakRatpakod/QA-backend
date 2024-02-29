@@ -4,7 +4,6 @@ from .views import FullnameDropdownView
 from .views import user_consultation_requests, user_consultation_requests_id, get_all_requests, get_all_requests_detail,update_request_status
 from .views import check_admin,get_completed_requests
 from .views import ChatViews
-from .views import AppointmentListCreate
 
 urlpatterns = [
     path('v1/consultation-request/create/', ConsultationRequestCreateView.as_view(), name='consultation-request-create'),
@@ -20,6 +19,5 @@ urlpatterns = [
     path('send-messages/', ChatViews.as_view(), name='send_message'),
     path('consultation-requests/<int:consultation_request_id>/chats/', ChatViews.as_view(), name='consultation-request-chats'),
     path('check-admin/', check_admin, name='check_admin'),
-    path('appointments/', AppointmentListCreate.as_view(), name='appointment-list-create'),
     # เพิ่ม URL pattern อื่น ๆ ตามที่ต้องการ
 ]
