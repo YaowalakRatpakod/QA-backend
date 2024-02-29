@@ -27,10 +27,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     date_joined = models.DateTimeField(auto_now_add=True)
-    major = models.CharField(max_length=100, choices=MAJORS)
+    major = models.CharField(max_length=100, choices=MAJORS, null=True)
 
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['full_name', 'tel'] 
+    REQUIRED_FIELDS = ['full_name', 'tel','major']
 
     objects = CustomUserManager()
 
@@ -128,6 +128,7 @@ class ConsultationRequest(models.Model):
     major = models.CharField(max_length=100, choices=User.MAJORS, blank=True)
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, default=False, related_name='consultation_requests')
+    appointment_date = models.DateField(null=True, blank=True)
 
     def get_user_major(self):
         return self.user.major
@@ -148,3 +149,4 @@ class Appointment(models.Model):
     appointment_date = models.DateField(null=True, blank=True)
     location = models.CharField(max_length=100, blank=True)
     time = models.CharField(max_length=100, blank=True)
+    consultation_request_id = models.IntegerField(null=True, blank=True)

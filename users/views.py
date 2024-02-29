@@ -16,6 +16,8 @@ from .serializers import CreateUserSerializer, ConsultationRequestSerializer, Ch
 
 import json
 from django.views import View
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login
 from django.views.decorators.http import require_POST
@@ -205,7 +207,7 @@ def user_consultation_requests_id(request,id):
 # get all request
 def get_all_requests(request):
     requests = ConsultationRequest.objects.all()
-    data = [{'id': request.id, 'user': request.user.full_name, 'topic_id': request.topic_id, 'topic_section': request.topic_section, 'submission_date': request.submission_date, 'received_date': request.received_date, 'status': request.status, 'details':request.details} for request in requests]
+    data = [{'id': request.id, 'user': request.user.full_name, 'topic_id': request.topic_id, 'topic_section': request.topic_section, 'submission_date': request.submission_date, 'received_date': request.received_date, 'status': request.status, 'details':request.details, 'appointment_date' : request.appointment_date} for request in requests]
     return JsonResponse(data, safe=False)
 
 def get_all_requests_detail(request, request_id):
@@ -220,9 +222,12 @@ def get_all_requests_detail(request, request_id):
         'submission_date': request.submission_date,
         'received_date': request.received_date,
         'status': request.status,
-        'details': request.details
+        'details': request.details,
+        'appointment_date' : request.appointment_date,
     }
     
+
+    # คืนค่าข้อมูลเป็น JSON
     return JsonResponse(data)
 
 # check admin
@@ -234,4 +239,47 @@ def check_admin(request):
         return Response({'is_admin': True})
     else:
         return Response({'is_admin': False})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_all_appointments(request):
+    appointments = Appointment.objects.all()
+    serializer = AppointmentSerializer(appointments, many=True)
+    return Response(serializer.data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_user_appointments(request, appointment_id):
+    user = request.user
+    appointments = Appointment.objects.filter(consultation_request_id=appointment_id)
+    serializer = AppointmentSerializer(appointments, many=True)
+    return Response(serializer.data)
+
+
+
+
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_user_card(request, user_card_id):
+    try:
+        user_card = get_object_or_404(ConsultationRequest, id=user_card_id)
+        user_card_data = {
+            'id': user_card.id,
+            'topic_id': user_card.topic_id,
+            # เพิ่มข้อมูลอื่น ๆ ตามต้องการ
+        }
+        return JsonResponse(user_card_data)
+    except ConsultationRequest.DoesNotExist:
+        return JsonResponse({'error': 'User card not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
     
+@receiver(post_save, sender=Appointment)
+def update_consultation_request(sender, instance, **kwargs):
+    if instance.appointment_date:
+        consultation_request = ConsultationRequest.objects.get(id=instance.consultation_request_id)
+        consultation_request.appointment_date = instance.appointment_date
+        consultation_request.save()

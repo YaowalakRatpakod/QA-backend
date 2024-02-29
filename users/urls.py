@@ -5,6 +5,7 @@ from .views import user_consultation_requests, user_consultation_requests_id, ge
 from .views import check_admin,get_completed_requests
 from .views import ChatViews
 from .views import AppointmentListCreate
+from .views import get_user_card, get_user_appointments
 
 urlpatterns = [
     path('v1/consultation-request/create/', ConsultationRequestCreateView.as_view(), name='consultation-request-create'),
@@ -16,10 +17,12 @@ urlpatterns = [
     path('user-consultation-requests-all/', get_all_requests),
     path('user-consultation-requests-all/<int:request_id>/', get_all_requests_detail),
     path('user-consultation-requests-all/success/', get_completed_requests),
+    path('user-card/<int:user_card_id>/', get_user_card),
     # URL pattern สำหรับการส่งข้อความ (POST)
     path('send-messages/', ChatViews.as_view(), name='send_message'),
     path('consultation-requests/<int:consultation_request_id>/chats/', ChatViews.as_view(), name='consultation-request-chats'),
     path('check-admin/', check_admin, name='check_admin'),
     path('appointments/', AppointmentListCreate.as_view(), name='appointment-list-create'),
+    path('appointments/<int:appointment_id>/', get_user_appointments, name='get_appointment_detail'),
     # เพิ่ม URL pattern อื่น ๆ ตามที่ต้องการ
 ]
