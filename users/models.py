@@ -16,9 +16,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     date_joined = models.DateTimeField(auto_now_add=True)
+    major = models.CharField(max_length=100, choices=MAJORS, null=True)
 
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['full_name', 'tel'] 
+    REQUIRED_FIELDS = ['full_name', 'tel','major']
 
     objects = CustomUserManager()
 
@@ -106,7 +107,9 @@ class ConsultationRequest(models.Model):
     document = models.ImageField(upload_to='documents/', null=True, blank=True) # เผื่อไว้อัพโหลดรูป
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending')
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, default=False)
+    major = models.CharField(max_length=100, choices=User.MAJORS, blank=True)
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, default=False, related_name='consultation_requests')
 
     
 # Chat
@@ -120,3 +123,8 @@ class ChatMessage(models.Model):
 
     def __str__(self):
         return f"{self.sender} to {self.receiver} - {self.timestamp}"
+
+class Appointment(models.Model):
+    appointment_date = models.DateField(null=True, blank=True)
+    location = models.CharField(max_length=100, blank=True)
+    time = models.CharField(max_length=100, blank=True)

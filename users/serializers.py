@@ -1,18 +1,32 @@
 from django.contrib.auth import get_user_model
 from djoser.serializers import UserCreateSerializer
 from rest_framework import serializers
+from django import forms
 
 from .models import User, ConsultationRequest, ChatMessage
 
 User = get_user_model()
 
 class CreateUserSerializer(UserCreateSerializer):
+    major = serializers.ChoiceField(choices=User.MAJORS.items())
+
     class Meta(UserCreateSerializer.Meta):
         model = User
-        fields = ['id', 'email', 'full_name', 'password']
-        is_active = serializers.BooleanField(default=True)
+        fields = ['id', 'email', 'full_name', 'password', 'major']
+        extra_kwargs = {'password': {'write_only': True}}
+
+    def create(self, validated_data):
+        major = validated_data.pop('major', None)  # ดึงค่า major ออกจาก validated_data
+        user = super().create(validated_data)  # สร้าง User จากข้อมูลที่ตรวจสอบแล้ว
+        if major:
+            user.major = major  # กำหนดค่า major ให้กับ User
+            user.save()  # บันทึกข้อมูล
+        return user
+
+
 
 class UserSerializer(serializers.ModelSerializer):
+    major = serializers.CharField(source='get_user_major', read_only=True)
     class Meta:
         model = User
         fields = ['id', 'full_name']
@@ -51,7 +65,8 @@ class ConsultationRequestSerializer(serializers.ModelSerializer):
                 submission_date=validated_data['submission_date'],
                 details=validated_data['details'],
                 document=validated_data.get('document', None),
-                status=status_data
+                status=status_data,
+                major=user_instance.major
                 )
             return consultation_request
         else:
