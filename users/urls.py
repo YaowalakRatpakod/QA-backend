@@ -23,5 +23,6 @@ urlpatterns = [
     path('consultation-requests/<int:consultation_request_id>/chats/', ChatViews.as_view(), name='consultation-request-chats'),
     path('check-admin/', check_admin, name='check_admin'),
     path('appointments/', AppointmentListCreate.as_view(), name='appointment-list-create'),
+    path('appointments/<int:appointment_id>/', get_user_appointments, name='get_appointment_detail'),
     # เพิ่ม URL pattern อื่น ๆ ตามที่ต้องการ
 ]

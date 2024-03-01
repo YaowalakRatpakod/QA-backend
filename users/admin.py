@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
 from .form import CustomUserChangeForm, CustomUserCreationForm
-from .models import User, ConsultationRequest, ChatMessage
+from .models import User, ConsultationRequest, ChatMessage, Appointment
 # Register your models here. ใช้สำหรับจัดการผู้ใช้
 
 
@@ -12,9 +12,9 @@ class UserAdmin(BaseUserAdmin):
     add_form = CustomUserCreationForm
     form = CustomUserChangeForm
     model = User
-    list_display = ['full_name', 'tel', 'email', 'is_staff']  # 'is_activate'
+    list_display = ['full_name', 'tel', 'email','major', 'is_staff']  # 'is_activate'
     list_display_links = ['email']
-    list_filter = ['full_name', 'tel', 'email', 'is_staff']  # 'is_activate'
+    list_filter = ['full_name', 'tel', 'email','major', 'is_staff']  # 'is_activate'
     search_fields = ['full_name', 'tel', 'email']
 
     fieldsets = (
@@ -26,7 +26,7 @@ class UserAdmin(BaseUserAdmin):
         (
             _("Personal Information"),
             {
-                "fields": ('full_name',)
+                "fields": ('full_name','tel','major',)
             },
         ),
         (
@@ -46,7 +46,7 @@ class UserAdmin(BaseUserAdmin):
     add_fieldsets = (
         (None, {
             "classes": ("wide",),
-            "fields": ("email", 'full_name', "password1", "password2", "is_staff", "is_active",)
+            "fields": ("email", 'full_name', "password1", "password2", "is_staff", "is_active","major",)
         },),
     )
 
@@ -59,6 +59,13 @@ class ChatMessageAdmin(admin.ModelAdmin):
     list_editable = ['is_read']
     list_display = ["sender","receiver","message","is_read"]
 
+
+class AppointmentAdmin(admin.ModelAdmin):
+    list_display = ['appointment_date', 'location', 'time']
+    search_fields = ['location']
+
+
 admin.site.register(User, UserAdmin)
 admin.site.register(ConsultationRequest, ConsultationRequestAdmin)
 admin.site.register(ChatMessage, ChatMessageAdmin)
+admin.site.register(Appointment,AppointmentAdmin)

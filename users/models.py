@@ -7,11 +7,22 @@ from django.utils import timezone
 
 # Create your models here.
 
-
 class User(AbstractBaseUser, PermissionsMixin):
+    MAJORS = {
+        "SE": "สาขาวิชาวิศวกรรมซอฟต์แวร์",
+        "CS": "สาขาวิชาวิทยาการคอมพิวเตอร์",
+        "CPE": "สาขาวิชาวิศวกรรมคอมพิวเตอร์",
+        "IT": "สาขาวิชาเทคโนโลยีสารสนเทศ",
+        "BS": "สาขาวิชาภูมิสารสนเทศศาสตร์",
+        "BBA": "สาขาวิชาธุรกิจดิจิทัล",
+        "CG": "สาขาวิชาคอมพิวเตอร์กราฟิกและมัลติมีเดีย",
+        "BSC": "สาขาวิชาวิทยาการข้อมูลและการประยุกต์",
+        "ICTE": "สาขาวิชาเทคโนโลยีสารสนเทศและสาขาวิชาภาษาอังกฤษ",
+
+    }
+
     full_name= models.CharField(_('Full Name'), max_length=100)
     tel=models.CharField(_('Tel'),max_length=10)
-    # major=models.CharField(_('major'))
     email = models.EmailField(_("email address"), max_length=254, unique=True)
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
@@ -33,6 +44,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def get_full_name(self):
         return f"{self.full_name}"
+    
+    def get_user_major(self):
+        return f"{self.major}"
+    
+    
+    
     
 class ConsultationRequest(models.Model):
 
@@ -99,6 +116,7 @@ class ConsultationRequest(models.Model):
         ('Appointment', 'การนัดหมาย'),
         ]
 
+
     topic_id = models.CharField(max_length=10, choices=TOPIC_CODE)  # แก้ไขตามความเหมาะสม
     topic_section = models.CharField(max_length=100, choices=TOPIC_TITLE)
     submission_date = models.DateTimeField(null=True, blank=True, default=timezone.now)
@@ -110,7 +128,10 @@ class ConsultationRequest(models.Model):
     major = models.CharField(max_length=100, choices=User.MAJORS, blank=True)
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, default=False, related_name='consultation_requests')
+    appointment_date = models.DateField(null=True, blank=True)
 
+    def get_user_major(self):
+        return self.user.major
     
 # Chat
 class ChatMessage(models.Model):
@@ -128,3 +149,4 @@ class Appointment(models.Model):
     appointment_date = models.DateField(null=True, blank=True)
     location = models.CharField(max_length=100, blank=True)
     time = models.CharField(max_length=100, blank=True)
+    consultation_request_id = models.IntegerField(null=True, blank=True)
