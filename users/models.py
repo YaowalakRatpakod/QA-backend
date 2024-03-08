@@ -24,13 +24,15 @@ class User(AbstractBaseUser, PermissionsMixin):
     full_name= models.CharField(_('Full Name'), max_length=100)
     tel=models.CharField(_('Tel'),max_length=10)
     email = models.EmailField(_("email address"), max_length=254, unique=True)
+    student_id = models.CharField(max_length=10, unique=True)
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     date_joined = models.DateTimeField(auto_now_add=True)
     major = models.CharField(max_length=100, choices=MAJORS, null=True)
+    
 
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['full_name', 'tel','major']
+    REQUIRED_FIELDS = ['full_name', 'tel','major','student_id']
 
     objects = CustomUserManager()
 

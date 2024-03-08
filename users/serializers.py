@@ -12,7 +12,7 @@ class CreateUserSerializer(UserCreateSerializer):
 
     class Meta(UserCreateSerializer.Meta):
         model = User
-        fields = ['id', 'email', 'full_name', 'password', 'major']
+        fields = ['id', 'email', 'full_name', 'password', 'major','student_id']
         extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
@@ -29,7 +29,7 @@ class UserSerializer(serializers.ModelSerializer):
     major = serializers.CharField(source='get_user_major', read_only=True)
     class Meta:
         model = User
-        fields = ['id', 'full_name','major']
+        fields = ['id', 'full_name','major','student_id']
 
 # สร้างคำขอปรึกษา
 class ConsultationRequestSerializer(serializers.ModelSerializer):

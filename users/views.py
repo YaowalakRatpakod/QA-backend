@@ -4,7 +4,7 @@ from rest_framework.generics import ListAPIView
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from django.http import JsonResponse
 from django.http import HttpResponseNotAllowed
@@ -32,13 +32,24 @@ class UserListView(generics.ListAPIView):
     def get_object(self):
         return self.request.user
     
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_user_info(request):
+    # ตรวจสอบว่าผู้ใช้ที่เรียก API เป็น admin หรือไม่
+    if request.user.is_superuser:
+        # หากเป็น admin ให้ดึงข้อมูลของผู้ใช้
+        user_data = {
+            'full_name': request.user.full_name,
+            'tel': request.user.tel,  # ใช้ฟิลด์เฉพาะเพื่อทำให้คลิกฟังก์ชันขึ้นได้
+            'major': request.user.major,
+            'stuent_id': request.user.student_id,
+        }
+        return Response(user_data)
+    else:
+        # หากผู้ใช้ไม่ใช่ admin ส่งข้อความข้อผิดพลาดกลับไป
+        return Response({'error': 'You do not have permission to access this information.'}, status=status.HTTP_403_FORBIDDEN)
 
-# ค่า Fullname แบบ dropdown ไม่จำเป็นลบได้
-class FullnameDropdownView(View):
-    def get(self, request, *args, **kwargs):
-        users = User.objects.values('full_name')
-        # serializers = UserSerializer(users, many=True)
-        return JsonResponse(list(users), safe=False)
+
 
 
 class ConsultationRequestCreateView(APIView):
@@ -170,7 +181,7 @@ def get_completed_requests(request):
     completed_requests = ConsultationRequest.objects.filter(status="Completed")
 
     # สร้างรายการข้อมูลที่จะส่งกลับในรูปแบบ JSON
-    data = [{'id': request.id, 'user': request.user.full_name, 'topic_id': request.topic_id, 'topic_section': request.topic_section, 'submission_date': request.submission_date, 'received_date': request.received_date, 'status': request.status, 'details': request.details} for request in completed_requests]
+    data = [{'id': request.id, 'user': request.user.full_name, 'topic_id': request.topic_id, 'topic_section': request.topic_section, 'submission_date': request.submission_date, 'received_date': request.received_date, 'status': request.status, 'details': request.details, 'student_id': request.user.student_id} for request in completed_requests]
 
     # ส่งข้อมูลกลับในรูปแบบ JSON
     return JsonResponse(data, safe=False)
@@ -180,13 +191,7 @@ def get_completed_requests(request):
 def user_consultation_requests(request):
     consultation_requests = ConsultationRequest.objects.filter(user=request.user)
     serializer = ConsultationRequestSerializer(consultation_requests, many=True)
-    # สร้างและบันทึกข้อมูล CompletedConsultation
-    # for consultation_request in consultation_requests:
-    #     CompletedConsultation.objects.create(
-    #         user=request.user,
-    #         consultation_request=consultation_request,
-    #         # สามารถเพิ่มข้อมูลเพิ่มเติมจาก consultation_request ได้ตามต้องการ
-    #     )
+    
 
     return Response(serializer.data)
 
@@ -207,7 +212,19 @@ def user_consultation_requests_id(request,id):
 # get all request
 def get_all_requests(request):
     requests = ConsultationRequest.objects.all()
-    data = [{'id': request.id, 'user': request.user.full_name, 'topic_id': request.topic_id, 'topic_section': request.topic_section, 'submission_date': request.submission_date, 'received_date': request.received_date, 'status': request.status, 'details':request.details, 'appointment_date' : request.appointment_date} for request in requests]
+    data = [{'id': request.id, 
+             'user': request.user.full_name,
+            'topic_id': request.topic_id, 
+            'topic_section': request.topic_section, 
+            'submission_date': request.submission_date, 
+            'received_date': request.received_date, 
+            'status': request.status, 
+            'details':request.details, 
+            'appointment_date' : request.appointment_date, 
+            'major' : request.user.major,
+            'tel' : request.user.tel,
+            'student_id': request.user.student_id,
+            } for request in requests]
     return JsonResponse(data, safe=False)
 
 def get_all_requests_detail(request, request_id):
@@ -224,12 +241,26 @@ def get_all_requests_detail(request, request_id):
         'status': request.status,
         'details': request.details,
         'appointment_date' : request.appointment_date,
+        'major' : request.user.major,
+        'tel' : request.user.tel,
+        'student_id': request.user.student_id,
     }
-    
+            
 
     # คืนค่าข้อมูลเป็น JSON
     return JsonResponse(data)
 
+class CancelRequestView(APIView):
+    permission_classes = [AllowAny]  # อนุญาตให้ทุกคนเข้าถึงได้โดยไม่จำเป็นต้องมีการตรวจสอบสิทธิ์
+
+    def delete(self, request, pk):
+        try:
+            request_to_cancel = ConsultationRequest.objects.get(pk=pk)
+            request_to_cancel.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except ConsultationRequest.DoesNotExist:
+            return Response({"error": "User consultation request not found."}, status=status.HTTP_404_NOT_FOUND)
+        
 # check admin
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -283,3 +314,63 @@ def update_consultation_request(sender, instance, **kwargs):
         consultation_request = ConsultationRequest.objects.get(id=instance.consultation_request_id)
         consultation_request.appointment_date = instance.appointment_date
         consultation_request.save()
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_user_completed_requests(request):
+    # ค้นหารายการที่มีสถานะเป็น "Completed" ของผู้ใช้ปัจจุบัน
+    completed_requests = ConsultationRequest.objects.filter(user=request.user, status="Completed")
+    
+    # สร้างรายการข้อมูลที่จะส่งกลับในรูปแบบ JSON
+    data = [{
+        'id': request.id,
+        'user': request.user.full_name,
+        'topic_id': request.topic_id,
+        'topic_section': request.topic_section,
+        'submission_date': request.submission_date,
+        'received_date': request.received_date,
+        'status': request.status,
+        'details': request.details,
+        'appointment_date': request.appointment_date
+    } for request in completed_requests]
+
+    # ส่งข้อมูลกลับในรูปแบบ JSON
+    return JsonResponse(data, safe=False)
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_user_tel(request):
+    try:
+        # อ่านข้อมูลจาก Request Body
+        data = request.data
+        new_tel = data.get('tel', None)
+
+        if new_tel is None:
+            return Response({'error': 'Missing tel field'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # ค้นหาผู้ใช้ที่กำลังล็อกอิน
+        user = request.user
+
+        # อัปเดตค่าเบอร์โทรของผู้ใช้
+        user.tel = new_tel
+        user.save()
+
+        return Response({'success': True, 'message': 'Phone number updated successfully'}, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+class CancelAppointmentView(APIView):
+    permission_classes = [AllowAny]
+
+    def delete(self, request, consultation_request_id):  # แก้ชื่อพารามิเตอร์เป็น consultation_request_id
+        # ตรวจสอบว่าการนัดหมายที่ต้องการลบมีอยู่จริงหรือไม่
+        appointment = get_object_or_404(Appointment, consultation_request_id=consultation_request_id)  # แก้ consultation_request_id
+        
+        # ตรวจสอบว่าผู้ใช้ที่ต้องการลบการนัดหมายเป็นเจ้าของหรือไม่
+        if request.user != request.user:
+            return Response({'error': 'You do not have permission to cancel this appointment'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # ลบการนัดหมาย
+        appointment.delete()
+        
+        return Response({'success': True, 'message': 'Appointment canceled successfully'}, status=status.HTTP_204_NO_CONTENT)
